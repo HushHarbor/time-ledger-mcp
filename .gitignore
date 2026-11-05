@@ -1,0 +1,18 @@
+node_modules/
+
+# Local credentials and environment configuration
+.env
+.env.*
+!.env.example
+
+# Local development notes are not part of the public project
+dev/memo.json
+
+# Editor and operating-system files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary output
+*.log
+npm-debug.log*

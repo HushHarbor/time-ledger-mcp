@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "time-ledger-mcp"
+abstract: >-
+  MCP server for time ledgers: stores scheduled entries as structured data and
+  renders them for display.
+type: software
+authors:
+  - name: "HushHarbor"
+version: "1.0.0"
+date-released: 2026-11-05
+license: Apache-2.0
+repository-code: "https://github.com/HushHarbor/time-ledger-mcp"
+url: "https://github.com/HushHarbor/time-ledger-mcp"

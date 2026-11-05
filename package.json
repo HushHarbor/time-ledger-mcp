@@ -1,0 +1,37 @@
+{
+  "name": "time-ledger-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A stdio MCP server for visualizing numeric-axis ledgers on a local timeline.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/HushHarbor/time-ledger-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HushHarbor/time-ledger-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HushHarbor/time-ledger-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ledger",
+    "timeline"
+  ],
+  "bin": {
+    "time-ledger-mcp": "src/server.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node dev/check.js",
+    "serve": "node dev/serve.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}

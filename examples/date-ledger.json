@@ -1,0 +1,49 @@
+{
+  "title": "Release Plan · Dates",
+  "axis": {
+    "label": "Date (UTC; epoch days)",
+    "min": 20752,
+    "max": 20760,
+    "ticks": [
+      { "at": 20752, "label": "Oct 26" },
+      { "at": 20753, "label": "Oct 27" },
+      { "at": 20754, "label": "Oct 28" },
+      { "at": 20755, "label": "Oct 29" },
+      { "at": 20756, "label": "Oct 30" },
+      { "at": 20757, "label": "Oct 31" },
+      { "at": 20758, "label": "Nov 1" },
+      { "at": 20759, "label": "Nov 2" },
+      { "at": 20760, "label": "Nov 3" }
+    ]
+  },
+  "tracks": [
+    {
+      "id": "planning",
+      "name": "Planning",
+      "blocks": [
+        { "id": "planning", "start": 20752, "end": 20754, "title": "Plan", "owner": "Alex", "status": "complete" }
+      ]
+    },
+    {
+      "id": "design",
+      "name": "Design",
+      "blocks": [
+        { "id": "design", "start": 20753, "end": 20756, "title": "Design", "owner": "Morgan", "status": "in progress" }
+      ]
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "blocks": [
+        { "id": "build", "start": 20755, "end": 20758, "title": "Build", "owner": "Riley", "status": "in progress" }
+      ]
+    },
+    {
+      "id": "review",
+      "name": "Review",
+      "blocks": [
+        { "id": "review", "start": 20757, "end": 20760, "title": "Review", "owner": "Jordan", "status": "planned" }
+      ]
+    }
+  ]
+}

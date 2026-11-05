@@ -1,0 +1,1256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Time Ledger</title>
+    <style>
+      :root {
+        color-scheme: light;
+        /* Everforest Light (medium) */
+        --bg0: #efebd4;
+        --bg1: #f4f0d9;
+        --bg2: #e6e2cc;
+        --bg3: #e0dcc7;
+        --fg: #5c6a72;
+        --fg-dim: #829181;
+        --fg-mute: #939f91;
+        --red: #f85552;
+        --orange: #f57d26;
+        --yellow: #dfa000;
+        --green: #8da101;
+        --aqua: #35a77c;
+        --blue: #3a94c5;
+        --purple: #df69ba;
+        --line: rgba(92, 106, 114, 0.14);
+        --line-strong: rgba(92, 106, 114, 0.26);
+        --shadow: rgba(92, 106, 114, 0.18);
+        --wash-green: rgba(141, 161, 1, 0.13);
+        --wash-aqua: rgba(53, 167, 124, 0.1);
+        --row-hover: rgba(92, 106, 114, 0.035);
+        --block-fg: #202824;
+        --gutter: clamp(84px, 13vw, 148px);
+        --mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+        /* Fixed header, flexible timeline, and a bottom-aligned detail area sized to its content. */
+        --hdr: 38px;
+        --main-min: 132px;
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg0: #2d353b;
+        --bg1: #343f44;
+        --bg2: #3d484d;
+        --bg3: #475258;
+        --fg: #d3c6aa;
+        --fg-dim: #9da9a0;
+        --fg-mute: #859289;
+        --red: #e67e80;
+        --orange: #e69875;
+        --yellow: #dbbc7f;
+        --green: #a7c080;
+        --aqua: #83c092;
+        --blue: #7fbbb3;
+        --purple: #d699b6;
+        --line: rgba(211, 198, 170, 0.12);
+        --line-strong: rgba(211, 198, 170, 0.24);
+        --shadow: rgba(0, 0, 0, 0.3);
+        --wash-green: rgba(167, 192, 128, 0.1);
+        --wash-aqua: rgba(131, 192, 146, 0.08);
+        --row-hover: rgba(211, 198, 170, 0.04);
+        --block-fg: #f4f0d9;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        /* Three rows: header, timeline, and details fill the viewport edge to edge. */
+        display: grid;
+        grid-template-rows: var(--hdr) minmax(var(--main-min), 1fr) auto;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        background:
+          radial-gradient(1100px 460px at 12% -14%, var(--wash-green), transparent 62%),
+          radial-gradient(900px 420px at 90% -6%, var(--wash-aqua), transparent 60%),
+          var(--bg0);
+        color: var(--fg);
+        font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        height: var(--hdr);
+        padding: 0 12px;
+        background: color-mix(in srgb, var(--bg1) 84%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line-strong);
+        z-index: 10;
+      }
+      header h1 {
+        flex: 0 1 auto;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 650;
+        margin: 0;
+        letter-spacing: 0.01em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      header h1::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        vertical-align: 1px;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+        animation: breathe 3s ease-in-out infinite;
+      }
+      header .meta {
+        flex: 0 1 auto;
+        min-width: 0;
+        color: var(--fg-mute);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .preferences {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex: none;
+      }
+      .preferences select {
+        height: 25px;
+        border: 1px solid var(--line-strong);
+        border-radius: 5px;
+        padding: 2px 6px;
+        background: var(--bg2);
+        color: var(--fg);
+        font: inherit;
+        font-size: 11px;
+        line-height: 1.2;
+        cursor: pointer;
+      }
+      #language-select { width: 82px; }
+      #theme-select { width: 76px; }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .preference-status {
+        max-width: 180px;
+        color: var(--red);
+        font-size: 10px;
+      }
+      .preference-status:empty { display: none; }
+      header .cursor-box {
+        margin-left: auto;
+        flex: none;
+        padding: 1px 10px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--aqua) 34%, transparent);
+        background: color-mix(in srgb, var(--aqua) 9%, transparent);
+        color: color-mix(in srgb, var(--aqua) 82%, var(--fg));
+        font: 600 12px/1.7 var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+
+      main {
+        grid-row: 2;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      #empty { padding: 16px 12px; color: var(--fg-mute); }
+      #empty p { margin: 0 0 14px; }
+      #empty code {
+        background: var(--bg2);
+        padding: 1px 6px;
+        border-radius: 5px;
+        color: color-mix(in srgb, var(--green) 88%, var(--fg));
+        font-family: var(--mono);
+      }
+      .skeleton { display: flex; flex-direction: column; gap: 8px; }
+      .sk {
+        height: 26px;
+        border-radius: 5px;
+        border: 1px dashed var(--line-strong);
+        background: linear-gradient(
+          90deg,
+          transparent,
+          color-mix(in srgb, var(--bg3) 80%, transparent),
+          transparent
+        );
+        background-size: 220px 100%;
+        background-repeat: no-repeat;
+        animation: shimmer 1.8s linear infinite;
+      }
+
+      #timeline { position: relative; width: 100%; min-height: 100%; }
+      #timeline.hidden { display: none; }
+
+      /* Extend ruler ticks through the full timeline, including empty areas. */
+      #grid { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+      .gline {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--line);
+      }
+
+      .row { position: relative; z-index: 1; display: flex; align-items: stretch; }
+      .gutter { width: var(--gutter); flex: none; padding: 0 8px 0 12px; overflow: hidden; }
+      .lane-area { flex: 1; position: relative; min-width: 0; }
+
+      .ruler-row {
+        height: 30px;
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background: var(--bg0);
+      }
+      .ruler-row .gutter {
+        display: flex;
+        align-items: flex-end;
+        padding-bottom: 5px;
+        color: var(--fg-mute);
+        font-size: 11px;
+        letter-spacing: 0.05em;
+      }
+      #ruler { border-bottom: 1px solid var(--line-strong); }
+      .tick {
+        position: absolute;
+        bottom: 0;
+        height: 6px;
+        border-left: 1px solid var(--line-strong);
+        animation: fadeIn 0.5s ease both;
+      }
+      .tick-label {
+        position: absolute;
+        top: 3px;
+        transform: translateX(-50%);
+        color: var(--fg-mute);
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        animation: fadeIn 0.5s ease both;
+      }
+      .tick-label.edge-start { transform: none; }
+      .tick-label.edge-end { transform: translateX(-100%); }
+
+      .track-row {
+        border-bottom: 1px solid var(--line);
+        transition: background 0.2s ease;
+      }
+      .track-row:hover { background: var(--row-hover); }
+      .track-row .gutter { display: flex; align-items: flex-start; gap: 7px; padding-top: 9px; }
+      .swatch {
+        width: 8px;
+        height: 8px;
+        border-radius: 3px;
+        flex: none;
+        margin-top: 5px;
+        background: var(--c, var(--fg-mute));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, transparent) 14%, transparent);
+      }
+      .tname {
+        font-size: 12px;
+        color: var(--fg-dim);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .block {
+        position: absolute;
+        border-radius: 6px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--c) 40%, var(--bg2)),
+          color-mix(in srgb, var(--c) 24%, var(--bg1))
+        );
+        border: 1px solid color-mix(in srgb, var(--c) 38%, transparent);
+        border-left: 3px solid var(--c);
+        padding: 3px 8px;
+        font-size: 11px;
+        line-height: 15px;
+        font-weight: 500;
+        color: color-mix(in srgb, var(--c) 50%, var(--block-fg));
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        animation: blockIn 0.36s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+        animation-delay: calc(var(--i, 0) * 16ms);
+        transition: box-shadow 0.18s ease, translate 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      }
+      .block:hover {
+        translate: 0 -1px;
+        border-color: color-mix(in srgb, var(--c) 62%, transparent);
+        box-shadow: 0 4px 14px var(--shadow);
+      }
+      .block .bt { opacity: 0.96; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .block.hit {
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--c) 54%, var(--bg1)),
+          color-mix(in srgb, var(--c) 36%, var(--bg2))
+        );
+        border-color: color-mix(in srgb, var(--c) 82%, transparent);
+        box-shadow:
+          0 0 0 1px color-mix(in srgb, var(--c) 46%, transparent),
+          0 3px 14px color-mix(in srgb, var(--c) 26%, transparent);
+        z-index: 3;
+      }
+      .block.narrow { padding: 0; border-left-width: 0; }
+      .block.narrow .bt { display: none; }
+      .block.compact { padding-left: 2px; padding-right: 2px; }
+
+      #playhead {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 2px;
+        margin-left: -1px;
+        background: linear-gradient(
+          180deg,
+          var(--red),
+          color-mix(in srgb, var(--red) 42%, transparent)
+        );
+        transform: translateX(0);
+        transition: transform 0.16s cubic-bezier(0.2, 0.7, 0.3, 1);
+        pointer-events: none;
+        z-index: 5;
+        display: none;
+      }
+      body.dragging #playhead { transition: none; }
+      #playhead::before {
+        content: "";
+        position: absolute;
+        top: 5px;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--red);
+        transform: translateX(-50%);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent);
+        animation: breathe 2.6s ease-in-out infinite;
+      }
+      #playhead::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -24px;
+        width: 50px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          color-mix(in srgb, var(--red) 7%, transparent),
+          transparent
+        );
+      }
+
+      #details {
+        grid-row: 3;
+        /* Content determines the height; the detail area grows upward from the viewport bottom. */
+        max-height: min(70vh, calc(100dvh - var(--hdr) - var(--main-min)));
+        max-height: min(70vh, calc(100vh - var(--hdr) - var(--main-min)));
+        overflow: auto;
+        background: color-mix(in srgb, var(--bg1) 88%, transparent);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid var(--line-strong);
+        box-shadow: 0 -6px 18px -12px var(--shadow);
+      }
+      .dhead {
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--fg-dim);
+        font-size: 12px;
+        position: sticky;
+        top: 0;
+        background: color-mix(in srgb, var(--bg1) 94%, transparent);
+        backdrop-filter: blur(8px);
+        z-index: 2;
+      }
+      .dhead b {
+        color: color-mix(in srgb, var(--green) 86%, var(--fg));
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+      .dhead .hint {
+        margin-left: 10px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: var(--bg3);
+        color: var(--fg-dim);
+        font-size: 11px;
+      }
+
+      .dbody { padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+      .dtrack { display: flex; flex-direction: column; gap: 6px; }
+      .dthead { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--fg); }
+      .dthead .count {
+        padding: 0 7px;
+        border-radius: 999px;
+        background: var(--bg3);
+        color: var(--fg-dim);
+        font-size: 11px;
+      }
+      .dcards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+        gap: 8px;
+      }
+      .dcard:only-child { grid-column: 1 / -1; }
+      .dnone { color: var(--fg-mute); font-size: 12px; padding-left: 15px; }
+
+      .dcard {
+        background: linear-gradient(180deg, var(--bg1), var(--bg2));
+        border: 1px solid var(--line);
+        border-top: 2px solid var(--c, var(--fg-mute));
+        border-radius: 7px;
+        padding: 8px 11px 10px;
+        box-shadow: 0 1px 2px var(--shadow);
+        animation: cardIn 0.34s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+        animation-delay: calc(var(--i, 0) * 30ms);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, translate 0.18s ease;
+      }
+      .dcard:hover {
+        translate: 0 -1px;
+        border-color: color-mix(in srgb, var(--c) 34%, var(--line-strong));
+        box-shadow: 0 6px 16px -6px var(--shadow);
+      }
+      .dcard .dtitle {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--fg);
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .dcard .dtitle .range {
+        margin-left: auto;
+        color: var(--fg-mute);
+        font-family: var(--mono);
+        font-weight: 400;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        flex: none;
+      }
+
+      /* Render ledger content as a nested JSON tree. */
+      .json { margin-top: 8px; font: 12px/1.55 var(--mono); }
+      .jblock + .jblock { margin-top: 3px; }
+      .jrow { display: flex; gap: 0; align-items: baseline; }
+      .jk { color: var(--blue); flex: none; }
+      .jc { color: var(--fg-mute); flex: none; margin-right: 5px; }
+      .jsource { color: var(--aqua); font-size: 10px; margin: 0 8px; }
+      .jsig { color: var(--fg-mute); font-size: 11px; }
+      .jv { color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+      .jv.num { color: var(--orange); }
+      .jv.bool { color: var(--purple); }
+      .jv.null { color: var(--fg-mute); font-style: italic; }
+      .jnest {
+        margin: 1px 0 1px 4px;
+        padding-left: 11px;
+        border-left: 1px dashed var(--line-strong);
+      }
+
+      @keyframes blockIn {
+        from { opacity: 0; scale: 0.955; }
+        to { opacity: 1; scale: 1; }
+      }
+      @keyframes cardIn {
+        from { opacity: 0; translate: 0 5px; }
+        to { opacity: 1; translate: 0 0; }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes breathe {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      @keyframes shimmer {
+        from { background-position: -220px 0; }
+        to { background-position: calc(100% + 220px) 0; }
+      }
+
+      ::-webkit-scrollbar { width: 9px; height: 9px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--fg-mute) 45%, transparent);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: color-mix(in srgb, var(--fg-mute) 70%, transparent);
+        background-clip: padding-box;
+      }
+
+      /* Narrow windows: reduce the label gutter and use a single detail-card column. */
+      @media (max-width: 720px) {
+        :root { --gutter: 76px; }
+        header .meta { display: none; }
+        .dhead .hint { display: none; }
+        .block { padding-left: 5px; padding-right: 5px; }
+      }
+      @media (max-width: 460px) {
+        :root { --gutter: 58px; }
+        header { gap: 8px; padding: 0 8px; }
+        #language-select { width: 70px; }
+        #theme-select { width: 68px; }
+        .preferences { gap: 3px; }
+      }
+      /* Short windows: preserve more room for the timeline. */
+      @media (max-height: 620px) {
+        :root { --main-min: 96px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Time Ledger</h1>
+      <span class="meta" id="meta">Waiting for a ledger</span>
+      <div class="preferences">
+        <label id="language-label" class="sr-only" for="language-select">Language</label>
+        <select id="language-select" aria-label="Language">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+        <label id="appearance-label" class="sr-only" for="theme-select">Appearance</label>
+        <select id="theme-select" aria-label="Appearance">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <span id="preference-status" class="preference-status" role="status" aria-live="polite"></span>
+      </div>
+      <span class="cursor-box" id="cursor-box">Cursor —</span>
+    </header>
+
+    <main>
+      <div id="empty">
+        <p><span id="empty-start">No ledger loaded. Call</span> <code>show</code> <span id="empty-end">with JSON to display its axis and tracks.</span></p>
+        <div class="skeleton" aria-hidden="true">
+          <div class="sk" style="width: 94%"></div>
+          <div class="sk" style="width: 72%"></div>
+          <div class="sk" style="width: 86%"></div>
+          <div class="sk" style="width: 63%"></div>
+        </div>
+      </div>
+      <div id="timeline" class="hidden">
+        <div id="grid" aria-hidden="true"></div>
+        <div class="row ruler-row">
+          <div class="gutter" id="axis-label"></div>
+          <div class="lane-area" id="ruler"></div>
+        </div>
+        <div id="tracks"></div>
+        <div id="playhead"></div>
+      </div>
+    </main>
+
+    <section id="details">
+      <div class="dhead">
+        <span id="cursor-label">Cursor</span> <b id="cursor-text">—</b><span class="hint" id="cursor-hint">Click or drag the timeline to move the cursor; use ← → to fine-tune</span>
+      </div>
+      <div class="dbody" id="details-body"></div>
+    </section>
+
+    <script type="module">
+      import { composeTracksAt } from "/ledger.js";
+
+      (() => {
+        "use strict";
+
+        const LANE_H = 30;
+        const LANE_GAP = 4;
+        const TRACK_PAD = 8;
+        const HIT_PX = 3;
+        const POLL_MS = 700;
+
+        const dom = {
+          title: document.getElementById("title"),
+          meta: document.getElementById("meta"),
+          languageLabel: document.getElementById("language-label"),
+          languageSelect: document.getElementById("language-select"),
+          appearanceLabel: document.getElementById("appearance-label"),
+          themeSelect: document.getElementById("theme-select"),
+          preferenceStatus: document.getElementById("preference-status"),
+          emptyStart: document.getElementById("empty-start"),
+          emptyEnd: document.getElementById("empty-end"),
+          cursorLabel: document.getElementById("cursor-label"),
+          cursorHint: document.getElementById("cursor-hint"),
+          cursorBox: document.getElementById("cursor-box"),
+          cursorText: document.getElementById("cursor-text"),
+          empty: document.getElementById("empty"),
+          timeline: document.getElementById("timeline"),
+          grid: document.getElementById("grid"),
+          tracks: document.getElementById("tracks"),
+          ruler: document.getElementById("ruler"),
+          axisLabel: document.getElementById("axis-label"),
+          playhead: document.getElementById("playhead"),
+          detailsBody: document.getElementById("details-body"),
+        };
+
+        const messages = {
+          en: {
+            pageTitle: "Time Ledger",
+            language: "Language",
+            appearance: "Appearance",
+            english: "English",
+            chinese: "中文",
+            auto: "Auto",
+            light: "Light",
+            dark: "Dark",
+            storageError: "Browser preferences could not be saved.",
+            waiting: "Waiting for a ledger",
+            emptyStart: "No ledger loaded. Call",
+            emptyEnd: "with JSON to display its axis and tracks.",
+            cursor: "Cursor",
+            cursorHint: "Click or drag the timeline to move the cursor; use ← → to fine-tune",
+            tracks: (count) => `${count} ${count === 1 ? "track" : "tracks"}`,
+            blocks: (count) => `${count} ${count === 1 ? "block" : "blocks"}`,
+            layers: (count) => `${count} ${count === 1 ? "layer" : "layers"}`,
+            none: "None",
+            noBlocks: "(No blocks at the cursor)",
+            untitled: "(Untitled)",
+          },
+          zh: {
+            pageTitle: "时间台账",
+            language: "语言",
+            appearance: "外观",
+            english: "English",
+            chinese: "中文",
+            auto: "自动",
+            light: "浅色",
+            dark: "深色",
+            storageError: "无法保存浏览器偏好设置。",
+            waiting: "等待载入台账",
+            emptyStart: "尚未载入台账。调用",
+            emptyEnd: "并传入 JSON，即可显示坐标轴和轨道。",
+            cursor: "光标",
+            cursorHint: "点击或拖动时间线移动光标；使用 ← → 微调",
+            tracks: (count) => `${count} 条轨道`,
+            blocks: (count) => `${count} 个区块`,
+            layers: (count) => `${count} 层`,
+            none: "无",
+            noBlocks: "（光标处没有区块）",
+            untitled: "（未命名）",
+          },
+        };
+        const preferenceKeys = {
+          language: "time-ledger.language",
+          theme: "time-ledger.theme",
+        };
+        const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+        const preferences = { language: "en", theme: "auto" };
+        let preferenceStorageFailed = false;
+
+        const state = {
+          version: -1,
+          data: null,
+          cursor: null,
+          geo: { gutter: 140, laneW: 400 },
+          lanes: [],
+          rows: [],
+          blockEls: new Map(),
+          tracksById: new Map(),
+          lastDetailSig: "",
+        };
+
+        const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+        const round = (v) => Math.round(v * 1e9) / 1e9;
+        const snap = (v) => Math.round(v * 1000) / 1000;
+        const fmt = (v) => (Number.isInteger(v) ? String(v) : String(round(v)));
+        const text = () => messages[preferences.language];
+
+        function reportPreferenceStorageError(error) {
+          preferenceStorageFailed = true;
+          console.error("Could not access saved Time Ledger preferences.", error);
+          dom.preferenceStatus.textContent = text().storageError;
+        }
+
+        try {
+          const language = localStorage.getItem(preferenceKeys.language);
+          const theme = localStorage.getItem(preferenceKeys.theme);
+          if (language === "en" || language === "zh") preferences.language = language;
+          if (theme === "auto" || theme === "light" || theme === "dark") preferences.theme = theme;
+        } catch (error) {
+          reportPreferenceStorageError(error);
+        }
+
+        function applyLanguage() {
+          const t = text();
+          document.documentElement.lang = preferences.language;
+          dom.languageLabel.textContent = t.language;
+          dom.languageSelect.setAttribute("aria-label", t.language);
+          dom.languageSelect.options[0].textContent = t.english;
+          dom.languageSelect.options[1].textContent = t.chinese;
+          dom.languageSelect.value = preferences.language;
+          dom.appearanceLabel.textContent = t.appearance;
+          dom.themeSelect.setAttribute("aria-label", t.appearance);
+          dom.themeSelect.options[0].textContent = t.auto;
+          dom.themeSelect.options[1].textContent = t.light;
+          dom.themeSelect.options[2].textContent = t.dark;
+          dom.themeSelect.value = preferences.theme;
+          dom.emptyStart.textContent = t.emptyStart;
+          dom.emptyEnd.textContent = t.emptyEnd;
+          dom.cursorLabel.textContent = t.cursor;
+          dom.cursorHint.textContent = t.cursorHint;
+          dom.preferenceStatus.textContent = preferenceStorageFailed ? t.storageError : "";
+        }
+
+        function applyTheme() {
+          const theme =
+            preferences.theme === "auto"
+              ? colorScheme.matches
+                ? "dark"
+                : "light"
+              : preferences.theme;
+          document.documentElement.dataset.theme = theme;
+        }
+
+        function savePreference(key, value) {
+          try {
+            localStorage.setItem(preferenceKeys[key], value);
+            preferenceStorageFailed = false;
+            dom.preferenceStatus.textContent = "";
+          } catch (error) {
+            reportPreferenceStorageError(error);
+          }
+        }
+
+        dom.languageSelect.addEventListener("change", () => {
+          preferences.language = dom.languageSelect.value;
+          applyLanguage();
+          savePreference("language", preferences.language);
+          render();
+        });
+
+        dom.themeSelect.addEventListener("change", () => {
+          preferences.theme = dom.themeSelect.value;
+          applyTheme();
+          savePreference("theme", preferences.theme);
+        });
+
+        colorScheme.addEventListener("change", () => {
+          if (preferences.theme === "auto") applyTheme();
+        });
+
+        applyLanguage();
+        applyTheme();
+
+        function fracOf(value) {
+          const { min, max } = state.data.axis;
+          return clamp((value - min) / (max - min), 0, 1);
+        }
+
+        function valueOf(frac) {
+          const { min, max } = state.data.axis;
+          return min + frac * (max - min);
+        }
+
+        function xOf(value) {
+          return fracOf(value) * state.geo.laneW;
+        }
+
+        function measure() {
+          const gutterEl = dom.timeline.querySelector(".gutter");
+          state.geo.gutter = gutterEl ? gutterEl.getBoundingClientRect().width : 120;
+          state.geo.laneW = Math.max(60, dom.ruler.clientWidth);
+        }
+
+        function assignLanes(blocks) {
+          const laneOf = new Map(blocks.map((block) => [block, block.lane]));
+          const count = new Set(blocks.map((block) => block.id)).size;
+          return { laneOf, count: Math.max(1, count) };
+        }
+
+        function render() {
+          const data = state.data;
+
+          if (!data) {
+            dom.empty.style.display = "";
+            dom.timeline.classList.add("hidden");
+            document.title = text().pageTitle;
+            dom.title.textContent = text().pageTitle;
+            dom.meta.textContent = text().waiting;
+            dom.cursorBox.textContent = `${text().cursor} —`;
+            dom.cursorText.textContent = "—";
+            dom.detailsBody.replaceChildren();
+            state.lastDetailSig = "";
+            return;
+          }
+
+          dom.empty.style.display = "none";
+          dom.timeline.classList.remove("hidden");
+          document.title = data.title;
+          dom.title.textContent = data.title;
+          dom.meta.textContent = `${text().tracks(data.tracks.length)} · ${text().blocks(data.stats.blocks)}`;
+          dom.axisLabel.textContent = data.axis.label || "";
+
+          if (state.cursor === null || state.cursor < data.axis.min || state.cursor > data.axis.max) {
+            const first = data.tracks.flatMap((track) => track.blocks)[0];
+            state.cursor = first ? first.start : data.axis.min;
+          }
+
+          state.lanes = data.tracks.map((track) => assignLanes(track.blocks));
+          state.tracksById = new Map(data.tracks.map((track) => [track.id, track]));
+          state.blockEls = new Map();
+          state.rows = [];
+          dom.tracks.replaceChildren();
+
+          data.tracks.forEach((track, index) => {
+            const lanes = state.lanes[index];
+            const height = lanes.count * LANE_H + (lanes.count - 1) * LANE_GAP + TRACK_PAD * 2;
+
+            const row = document.createElement("div");
+            row.className = "row track-row";
+
+            const gutter = document.createElement("div");
+            gutter.className = "gutter";
+            const swatch = document.createElement("span");
+            swatch.className = "swatch";
+            swatch.style.setProperty("--c", track.color);
+            const name = document.createElement("span");
+            name.className = "tname";
+            name.textContent = track.name;
+            name.title = track.name;
+            gutter.append(swatch, name);
+
+            const area = document.createElement("div");
+            area.className = "lane-area";
+            area.style.height = `${height}px`;
+
+            row.append(gutter, area);
+            dom.tracks.append(row);
+            state.rows.push(area);
+          });
+
+          measure();
+          paintTicks();
+          paintBlocks();
+          paintPlayhead();
+          paintDetails();
+        }
+
+        function paintTicks() {
+          const { ticks } = state.data.axis;
+          const laneW = state.geo.laneW;
+          const gutter = state.geo.gutter;
+          dom.ruler.replaceChildren();
+          dom.grid.replaceChildren();
+          let labelRight = -Infinity;
+
+          for (const tick of ticks) {
+            const x = xOf(tick.at);
+
+            const line = document.createElement("div");
+            line.className = "tick";
+            line.style.left = `${x}px`;
+            dom.ruler.append(line);
+
+            const guide = document.createElement("div");
+            guide.className = "gline";
+            guide.style.left = `${gutter + x}px`;
+            dom.grid.append(guide);
+
+            const width = tick.label.length * 6.6 + 8;
+            const half = width / 2;
+            let left = x - half;
+            let right = x + half;
+            let cls = "tick-label";
+
+            if (x < half) {
+              cls += " edge-start";
+              left = x;
+              right = x + width;
+            } else if (x > laneW - half) {
+              cls += " edge-end";
+              left = x - width;
+              right = x;
+            }
+
+            if (left < labelRight) continue;
+
+            const label = document.createElement("div");
+            label.className = cls;
+            label.style.left = `${x}px`;
+            label.textContent = tick.label;
+            dom.ruler.append(label);
+            labelRight = right;
+          }
+        }
+
+        function paintBlocks() {
+          const data = state.data;
+          let sequence = 0;
+
+          data.tracks.forEach((track, index) => {
+            const area = state.rows[index];
+            const lanes = state.lanes[index];
+
+            for (const block of track.blocks) {
+              const x1 = xOf(block.start);
+              const x2 = xOf(block.end);
+              const width = Math.max(3, Math.abs(x2 - x1));
+
+              const el = document.createElement("div");
+              el.className = "block";
+              el.style.setProperty("--c", track.color);
+              el.style.setProperty("--i", String(Math.min(sequence, 40)));
+              sequence += 1;
+              el.style.left = `${Math.min(x1, x2)}px`;
+              el.style.width = `${width}px`;
+              el.style.top = `${TRACK_PAD + lanes.laneOf.get(block) * (LANE_H + LANE_GAP)}px`;
+              el.style.height = `${LANE_H}px`;
+              if (width < 20) el.classList.add("narrow");
+              else if (width < 42) el.classList.add("compact");
+              el.title = `${block.title || text().untitled} · ${block.id}  [${fmt(block.start)} → ${fmt(block.end)}]`;
+
+              const text = document.createElement("span");
+              text.className = "bt";
+              text.textContent = block.title || text().untitled;
+              el.append(text);
+
+              area.append(el);
+              state.blockEls.set(block, el);
+            }
+          });
+        }
+
+        function paintPlayhead() {
+          const x = state.geo.gutter + xOf(state.cursor);
+          dom.playhead.style.display = "block";
+          dom.playhead.style.transform = `translateX(${x}px)`;
+
+          const text = fmt(state.cursor);
+          dom.cursorBox.textContent = `${messages[preferences.language].cursor} ${text}`;
+          dom.cursorText.textContent = fmt(state.cursor);
+        }
+
+        function paintDetails() {
+          const data = state.data;
+          if (!data) return;
+
+          const cursor = state.cursor;
+          const span = data.axis.max - data.axis.min;
+          const eps = (span / Math.max(1, state.geo.laneW)) * HIT_PX;
+
+          const hits = data.tracks.map((track) => ({
+            track,
+            blocks: track.blocks.filter((block) => cursor >= block.start - eps && cursor <= block.end + eps),
+          }));
+          const compositions = composeTracksAt(data.tracks, cursor);
+
+          for (const el of state.blockEls.values()) el.classList.remove("hit");
+          for (const hit of hits) {
+            for (const block of hit.blocks) {
+              const el = state.blockEls.get(block);
+              if (el) el.classList.add("hit");
+            }
+          }
+
+          const signature = hits
+            .map((hit, index) => {
+              const composition = compositions.get(hit.track.id);
+              return `${index}:${hit.blocks.map((b) => `${b.id}~${fmt(b.start)}~${fmt(b.end)}~${b.title}`).join(",")}:${JSON.stringify(composition.content)}:${JSON.stringify(composition.origins)}`;
+            })
+            .join("|");
+          if (signature === state.lastDetailSig) return;
+          state.lastDetailSig = signature;
+
+          const fragment = document.createDocumentFragment();
+          for (const hit of hits) {
+            fragment.append(trackDetail(hit.track, hit.blocks, compositions.get(hit.track.id), cursor));
+          }
+          dom.detailsBody.replaceChildren(fragment);
+        }
+
+        function trackDetail(track, blocks, composition, cursor) {
+          const wrap = document.createElement("div");
+          wrap.className = "dtrack";
+
+          const head = document.createElement("div");
+          head.className = "dthead";
+          const swatch = document.createElement("span");
+          swatch.className = "swatch";
+          swatch.style.setProperty("--c", track.color);
+          const name = document.createElement("span");
+          name.textContent = track.name;
+          name.title = `ID: ${track.id}`;
+          const count = document.createElement("span");
+          count.className = "count";
+          count.textContent = blocks.length ? text().layers(blocks.length) : text().none;
+          head.append(swatch, name, count);
+          wrap.append(head);
+
+          if (blocks.length === 0) {
+            const none = document.createElement("div");
+            none.className = "dnone";
+            none.textContent = text().noBlocks;
+            wrap.append(none);
+            return wrap;
+          }
+
+          const grid = document.createElement("div");
+          grid.className = "dcards";
+          grid.append(
+            blockCard(
+              {
+                title: composition.title || track.name,
+                start: cursor,
+                end: cursor,
+                content: Object.entries(composition.content),
+                origins: composition.origins,
+              },
+              track,
+              0,
+            ),
+          );
+          wrap.append(grid);
+          return wrap;
+        }
+
+        function blockCard(block, track, index) {
+          const card = document.createElement("article");
+          card.className = "dcard";
+          card.style.setProperty("--c", track.color);
+          card.style.setProperty("--i", String(Math.min(index, 24)));
+
+          const head = document.createElement("div");
+          head.className = "dtitle";
+          const name = document.createElement("span");
+          name.textContent = block.title || text().untitled;
+          const range = document.createElement("span");
+          range.className = "range";
+          range.textContent = `${fmt(block.start)} → ${fmt(block.end)}`;
+          head.append(name, range);
+          card.append(head);
+
+          if (block.content.length) {
+            const tree = document.createElement("div");
+            tree.className = "json";
+            for (const [key, value] of block.content) tree.append(jsonEntry(key, value, block.origins));
+            card.append(tree);
+          }
+
+          return card;
+        }
+
+        const isContainer = (value) => typeof value === "object" && value !== null;
+
+        function summaryOf(value) {
+          if (Array.isArray(value)) {
+            return value.length ? `[ ${value.length} items ]` : "[ ]";
+          }
+          const size = Object.keys(value).length;
+          return size ? `{ ${size} fields }` : "{ }";
+        }
+
+        function isEmptyContainer(value) {
+          return isContainer(value) && (Array.isArray(value) ? value.length === 0 : Object.keys(value).length === 0);
+        }
+
+        function jsonScalar(value) {
+          const span = document.createElement("span");
+
+          if (value === null) {
+            span.className = "jv null";
+            span.textContent = "null";
+            return span;
+          }
+          if (typeof value === "number") {
+            span.className = "jv num";
+            span.textContent = String(value);
+            return span;
+          }
+          if (typeof value === "boolean") {
+            span.className = "jv bool";
+            span.textContent = String(value);
+            return span;
+          }
+
+          span.className = "jv";
+          span.textContent = value === "" ? '\u201c\u201d' : String(value);
+          return span;
+        }
+
+        function jsonEntry(key, value, origins, path = [key]) {
+          const block = document.createElement("div");
+          block.className = "jblock";
+
+          const row = document.createElement("div");
+          row.className = "jrow";
+
+          const name = document.createElement("span");
+          name.className = "jk";
+          name.textContent = key;
+
+          const colon = document.createElement("span");
+          colon.className = "jc";
+          colon.textContent = ":";
+
+          row.append(name, colon);
+          const sourceId = origins?.[JSON.stringify(path)];
+          if (sourceId) {
+            const source = document.createElement("span");
+            source.className = "jsource";
+            source.textContent = `← ${state.tracksById.get(sourceId)?.name ?? sourceId}`;
+            source.title = `Source ID: ${sourceId}`;
+            row.append(source);
+          }
+          block.append(row);
+
+          if (!isEmptyContainer(value) && isContainer(value)) {
+            const signature = document.createElement("span");
+            signature.className = "jsig";
+            signature.textContent = summaryOf(value);
+            row.append(signature);
+
+            const nest = document.createElement("div");
+            nest.className = "jnest";
+            if (Array.isArray(value)) {
+              value.forEach((item, index) => nest.append(jsonEntry(`[${index}]`, item, origins, [...path, index])));
+            } else {
+              for (const [childKey, childValue] of Object.entries(value)) {
+                nest.append(jsonEntry(childKey, childValue, origins, [...path, childKey]));
+              }
+            }
+            block.append(nest);
+            return block;
+          }
+
+          if (isEmptyContainer(value)) {
+            const empty = document.createElement("span");
+            empty.className = "jsig";
+            empty.textContent = summaryOf(value);
+            row.append(empty);
+            return block;
+          }
+
+          row.append(jsonScalar(value));
+          return block;
+        }
+
+        let dragging = false;
+
+        function placeFromClientX(clientX) {
+          if (!state.data) return;
+          const rect = dom.ruler.getBoundingClientRect();
+          const frac = clamp((clientX - rect.left) / state.geo.laneW, 0, 1);
+          const value = snap(valueOf(frac));
+          if (value === state.cursor) return;
+          state.cursor = value;
+          paintPlayhead();
+          paintDetails();
+        }
+
+        dom.timeline.addEventListener("pointerdown", (event) => {
+          if (!state.data || event.button !== 0) return;
+          if (!event.target.closest(".lane-area")) return;
+          dragging = true;
+          document.body.classList.add("dragging");
+          dom.timeline.setPointerCapture(event.pointerId);
+          placeFromClientX(event.clientX);
+          event.preventDefault();
+        });
+
+        dom.timeline.addEventListener("pointermove", (event) => {
+          if (dragging) placeFromClientX(event.clientX);
+        });
+
+        function endDrag(event) {
+          dragging = false;
+          document.body.classList.remove("dragging");
+          if (dom.timeline.hasPointerCapture(event.pointerId)) {
+            dom.timeline.releasePointerCapture(event.pointerId);
+          }
+        }
+
+        dom.timeline.addEventListener("pointerup", endDrag);
+        dom.timeline.addEventListener("pointercancel", endDrag);
+
+        window.addEventListener("keydown", (event) => {
+          if (!state.data) return;
+          if (
+            event.target instanceof HTMLElement &&
+            event.target.closest("select, input, textarea, button, [contenteditable='true']")
+          ) {
+            return;
+          }
+          const axis = state.data.axis;
+          const step = axis.step || (axis.max - axis.min) / 20;
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+          state.cursor = snap(
+            clamp(state.cursor + (event.key === "ArrowLeft" ? -step : step), axis.min, axis.max),
+          );
+          paintPlayhead();
+          paintDetails();
+          event.preventDefault();
+        });
+
+        new ResizeObserver(() => {
+          if (!state.data) return;
+          const width = dom.ruler.clientWidth;
+          if (Math.abs(width - state.geo.laneW) < 1) return;
+          render();
+        }).observe(dom.ruler);
+
+        async function poll() {
+          try {
+            const response = await fetch("/api/ledger", { cache: "no-store" });
+            if (!response.ok) return;
+            const body = await response.json();
+            if (body.version === state.version) return;
+
+            state.version = body.version;
+            state.data = body.ledger || null;
+            state.cursor = null;
+            state.lastDetailSig = "";
+            render();
+          } catch {
+            /* Keep the current view and retry on the next poll. */
+          }
+        }
+
+        poll();
+        setInterval(poll, POLL_MS);
+      })();
+    </script>
+  </body>
+</html>
